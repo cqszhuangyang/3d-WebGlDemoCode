@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #000;
+				color: #fff;
+				margin: 0px;
+				overflow: hidden;
+			}
+			a {
+				color: red;
+			}
+		</style>
+	</head>
+	<body>
+		<script type="text/javascript" src="../build/three.js"></script>
+		<script type="text/javascript" src="js/loaders/DDSLoader.js"></script>
+		<script type="text/javascript" src="js/loaders/MTLLoader.js"></script>
+		<script type="text/javascript" src="js/loaders/OBJLoader.js"></script>
+       <!-- <script type="text/javascript" src="js/controls/TrackballControls.js"></script>-->
+		<script type="text/javascript" src="js/Detector.js"></script>
+		<script type="text/javascript" src="js/libs/stats.min.js"></script>
+	    <script src="js/controls/OrbitControls.js"></script>
+
+		<script>
+            if (!Detector.webgl ) Detector.addGetWebGLMessage();
+			var container, stats;
+            var myObject;
+			var camera, scene, renderer;
+			var onProgress;
+			var onError 
+            var SCREEN_WIDTH = window.innerWidth, SCREEN_HEIGHT = window.innerHeight;
+            var modelResDataPath, mtlDataPathList;
+			var selectedIndex = -1;
+
+			initTestData();
+			init();
+			animate();
+        
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+               // 准备相机
+				var VIEW_ANGLE = 45, ASPECT = SCREEN_WIDTH / SCREEN_HEIGHT, NEAR = 1, FAR = 10000;
+                this.camera = new THREE.PerspectiveCamera( VIEW_ANGLE, ASPECT, NEAR, FAR);
+				//设置相机的坐标  
+			    camera.position.x = 0;  
+                camera.position.y = 0;  
+                camera.position.z = 1500;
+                camera.lookAt({x:0,y:0,z:0}); //设置视野的中心坐标
+				// scene
+				scene = new THREE.Scene();
+				var ambient = new THREE.AmbientLight( 0xffffff );
+				scene.add( ambient );//追加环境光到场景  
+
+				var directionalLight = new THREE.DirectionalLight( 0xffffff,1.0,0 );////设置平行光源 
+				directionalLight.position.set( 1, 1, 1 ).normalize();
+				scene.add( directionalLight );//追加光源到场景  
+                var directionalLight = new THREE.DirectionalLight( 0xffffff,1.0,0 );////设置平行光源 
+				directionalLight.position.set( 0, -1, 0 ).normalize();
+				scene.add( directionalLight );//追加光源到场景
+				// model
+
+				onProgress = function ( xhr ) {
+					if ( xhr.lengthComputable ) {
+						var percentComplete = xhr.loaded / xhr.total * 100;
+						console.log( Math.round(percentComplete, 2) + '% downloaded' );
+					}
+				};
+
+				onError = function ( xhr ) { };
+
+				THREE.Loader.Handlers.add( /\.dds$/i, new THREE.DDSLoader() );
+
+				//add model
+
+                selectedMaterials(0);
+				//
+                renderer = new THREE.WebGLRenderer({antialias:true});////生成渲染器对象，锯齿效果设置为有效  
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );//设置渲染器的高宽  
+				renderer.setClearColor( 0xffffff );
+				container.appendChild( renderer.domElement );
+
+				
+               // controls, camera
+			//	controls = new THREE.TrackballControls( camera, renderer.domElement );
+				//controls.rotateSpeed = 5.0;
+				//controls.zoomSpeed = 5;
+				//controls.panSpeed = 2;
+				//controls.noZoom = false;
+				//controls.noPan = false;
+				//controls.staticMoving = true;
+				//controls.dynamicDampingFactor = 0.3;
+      
+		      //  controls.update();
+				
+
+                controls = new THREE.OrbitControls( camera, renderer.domElement );
+			    controls.minDistance =1500;
+			  	controls.maxDistance =3000;
+				controls.zoomSpeed =1;
+				controls.panSpeed = 2;
+				controls.rotateSpeed = 1.0;
+			  	controls.update();
+
+				animate();
+                window.addEventListener( 'resize', onWindowResize, false );
+               
+			}
+
+			function  DIYModelResData(modelName,modelPath,version) //声明对象
+            {
+                this.name = modelName;
+                this.path= modelPath;
+				this.version = version
+       
+            }
+
+			function DIYMTLResData(mtlName,mtlPath,texturePath,version) //声明对象
+			{
+				this.name = mtlName;
+                this.path= mtlPath;
+				this.texturePath= texturePath;
+				this.version = version
+			}
+			
+			function onWindowResize() {
+
+                SCREEN_WIDTH = window.innerWidth;
+                SCREEN_HEIGHT = window.innerHeight;
+				camera.aspect = SCREEN_WIDTH / SCREEN_HEIGHT;
+				camera.updateProjectionMatrix();
+				renderer.setSize( SCREEN_WIDTH, SCREEN_HEIGHT );
+			}
+ 
+			//
+			function animate(time) {
+				requestAnimationFrame( animate );
+				controls.update();
+				render();
+			}
+
+			function render() {
+                camera.lookAt( scene.position );
+				renderer.render( scene, camera );
+
+			}
+			function selectedMaterials(index)
+			{
+				if(selectedIndex == index)return;
+			    selectedIndex = index;
+                var mtlObjData = mtlDataPathList[index];
+				addModel(mtlObjData,modelResDataPath);
+			
+			}
+			function addModel(MtlDIYResObj,ModelDIYResObj){
+                var mtlLoader = new THREE.MTLLoader();
+				mtlLoader.setPath( MtlDIYResObj.path );
+				mtlLoader.setTexturePath( MtlDIYResObj.texturePath);
+				mtlLoader.load( MtlDIYResObj.name+"?ver."+MtlDIYResObj.version, function( materials ) {
+					materials.preload();
+					var objLoader = new THREE.OBJLoader();
+					objLoader.setMaterials( materials );
+					objLoader.setPath(ModelDIYResObj.path );
+					objLoader.load( ModelDIYResObj.name+"?ver."+ModelDIYResObj.version, function ( object ) {
+						scene.remove( myObject );
+						myObject = object;
+						scene.add( myObject );
+					
+					}, onProgress, onError );
+				});
+               
+                	
+			}
+			
+			/****************Test**************************/
+            function initTestData()
+			{
+              
+				modelResDataPath = new DIYModelResData('01.obj','obj/desk/',"1.0");
+				mtlDataPathList =[];
+				mtlDataPathList.push(new DIYMTLResData( '01.mtl','obj/desk/',"","1.0"));
+                mtlDataPathList.push(new DIYMTLResData( '02.mtl','obj/desk/',"","1.0"));
+				
+			}
+		</script>
+		<div style="position: absolute; top: 10px; width: 100%; text-align: left; ">
+			<a href="#" onclick="selectedMaterials(0);return false;">材质1</a>
+			<a href="#" onclick="selectedMaterials(1);return false;">材质2</a>
+			<a href="#" onclick="selectedMaterials(2);return false;">材质3</a>	  
+		</div>
+
+	</body>
+</html>
